@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypt Calculator</title>
+    <style>
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            /* atau justify-content: space-around; */
+        }
+
+        .checkboxes {
+            display: flex;
+            flex-direction: column;
+            margin-right: 10px;
+            /* border-style: solid; */
+        }
+
+        .card {
+            flex: 1 0 calc(25% - 20px);
+            /* 25% untuk 4 card, dikurangi margin */
+            margin-right: 10px;
+            margin-bottom: 10px;
+            padding: 10px;
+            display: none;
+            border-style: solid;
+            box-sizing: border-box;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        input {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div style="display: flex; justify-content: center; border: solid;">
+        <div style="width: 300px;">
+            <h1 style="text-align: center;">Market Overview</h1>
+            <div>
+                <p style="font-size: 20px; font-weight: bold; text-align: center;">Fear & Greed Index :</p>
+                <div style="display: flex; justify-content: center;">
+                    <div>
+                        <span id="sentiment" style="font-size: 30px;"></span>
+                        <span id="condition" style="font-size: 30px;"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <br>
+    <div class="container" style="padding: 10px; border-style: solid;">
+        <!-- Checkboxes to add card input sections -->
+        <div class="checkboxes">
+            <button onclick="toggleCardInputSection(1)" style="background-color: grey;">Calculator</button>
+            <br>
+        </div>
+        <div class="card template-card" id="template-card">
+            <!-- Tambahkan elemen untuk menampilkan keterangan -->
+            <form class=" targetProfitForm">
+                <h2 class="keterangan"></h2>
+                <label for="instrument">Instrument :</label>
+                <input name="instrument" required>
+                <br>
+                <label for="MaksimumJLH" style="display: none;">Maksimum jlh Lvl 1x :</label>
+                <input type="number" step="0.000001" name="maks_quantity_trade" required style="display: none;">
+                <!-- <br> -->
+                <label for="hargaSebelumnya">Harga Entry :</label>
+                <input type="number" step="0.000001" name="hargaSebelumnya" required>
+                <br>
+                <label for="hargaSekarang">Harga Close :</label>
+                <input type="number" step="0.000001" name="hargaSekarang" required>
+                <br>
+                <label for="lAndRTarget">L & R yang Diinginkan ($):</label>
+                <input type="number" step="0.000001" name="lAndRTarget" required>
+                <br>
+                <label for="jlhCryptoLangsung">Jlh Crypto:</label>
+                <input type="number" step="0.000001" name="jlhCryptoLangsung" required>
+                <br>
+                <button type="button" onclick="hitungTargetProfit(this)">Hitung Target Profit</button>
+
+            </form>
+            <div class="resultContainer" style="padding:10px; display: none; margin: 10px; border-style: solid;">
+                <h2>Hasil Perhitungan</h2>
+                <p class="instrumentLabel">Jenis Instrument: </p>
+                <p><a id="bybitLink" href="https://www.bybit.com/trade/usdt/...USDT">link Bybit</a></p>
+                <p class="resultMessage"></p>
+                <p class="jlhCryptoLabel">Jumlah Crypto:</p>
+                <p class="jlhCrypto"></p>
+                <p class="closeLabel">Close Market: </p>
+                <p class="closeMarket"></p>
+                <p class="biayaPosisiLabel">Biaya Posisi :</p>
+                <p class="biayaPosisi"></p>
+                <p class="feeOrderLabel">Fee Order: </p>
+                <p class="feeOrder"></p>
+                <p class="maksimumLossLabel">Maksimum Loss: </p>
+                <p class="maksimumLoss"></p>
+                <p class="landrhasilLabel">L and R: </p>
+                <p class="landrhasil"></p>
+
+            </div>
+            <div class="card-buttons">
+                <!-- Add button to remove the card -->
+                <button onclick="removeCard(this)">Hapus</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var keterangan = {
+            1: 'Crypto'
+        };
+
+        function hitungTargetProfit(button) {
+            var form = button.closest('.card').querySelector('.targetProfitForm');
+            var resultContainer = button.closest('.card').querySelector('.resultContainer');
+
+            // Mendapatkan nilai dari input form
+            var instrument = form.elements["instrument"].value;
+            var maks_quantity_trade = parseFloat(form.elements["maks_quantity_trade"].value);
+            var hargaSebelumnya = parseFloat(form.elements["hargaSebelumnya"].value);
+            var hargaSekarang = parseFloat(form.elements["hargaSekarang"].value);
+            var lAndRTarget = parseFloat(form.elements["lAndRTarget"].value);
+            var jlhCryptoLangsung = parseFloat(form.elements["jlhCryptoLangsung"].value);
+            // var leverage = 1;
+            var leverage = 1;
+
+            // Mendapatkan elemen link Bybit
+            var bybitLink = resultContainer.querySelector('a');
+
+            // Mengubah href dari link Bybit dengan menambahkan nilai instrument
+            bybitLink.href = `https://www.bybit.com/trade/usdt/${instrument}USDT`;
+
+            // Membuka link di tab baru
+            bybitLink.addEventListener('click', function (event) {
+                event.preventDefault(); // Mencegah aksi default dari link
+                window.open(this.href, '_blank');
+            });
+
+
+            // Menampilkan hasil perhitungan
+            var lAndRTargetSwap = (lAndRTarget * 35) / 100;
+
+            if (!hargaSebelumnya && !hargaSekarang && !lAndRTarget) {
+                var jlhCrypto = jlhCryptoLangsung;
+            } else {
+                var jlhCrypto = lAndRTarget / (hargaSebelumnya - hargaSekarang);
+            }
+
+            var lAndRTerealisasi = 2 * (jlhCrypto * hargaSebelumnya * 0.03) / 100;
+            var lAndRTerealisasipositif = Math.abs(2 * (jlhCrypto * hargaSebelumnya * 0.055) / 100);
+            var maksimumLoss = lAndRTarget + lAndRTerealisasipositif;
+            var maks_jlh = (jlhCrypto * 100) / 10;
+            var minimum_lvl = (maks_jlh * leverage) / maks_quantity_trade;
+
+            var tersedia = maks_quantity_trade * hargaSebelumnya;
+            var biaya_order_sebelum_10 = (jlhCrypto * hargaSebelumnya) / minimum_lvl;
+            var tersedia_selanjutnya = tersedia - biaya_order_sebelum_10;
+
+            if (!jlhCrypto) {
+                var biayaPosisi = jlhCryptoLangsung * hargaSebelumnya;
+            } else {
+                var biayaPosisi = jlhCrypto * hargaSebelumnya;
+            }
+
+
+            var sl = hargaSekarang - hargaSebelumnya;
+            var closeSwp = hargaSebelumnya - sl;
+            var landrhasil = jlhCryptoLangsung * (hargaSekarang - hargaSebelumnya);
+
+            resultContainer.style.display = "block";
+            resultContainer.querySelector('.jlhCrypto').innerText = jlhCrypto.toFixed(3);
+            resultContainer.querySelector('.jlhCrypto').classList.add('copyable'); // Tambahkan kelas copyable
+            resultContainer.querySelector('.jlhCrypto').addEventListener('click', function () {
+                navigator.clipboard.writeText(jlhCrypto.toFixed(6))
+                    .then(() => {
+                        console.log('Text copied to clipboard');
+                    })
+                    .catch(err => {
+                        console.error('Failed to copy text: ', err);
+                    });
+            });
+
+            resultContainer.querySelector('.feeOrder').innerText = lAndRTerealisasi.toFixed(6);
+            resultContainer.querySelector('.maksimumLoss').innerText = maksimumLoss.toFixed(6);
+            resultContainer.querySelector('.closeMarket').innerText = hargaSekarang.toFixed(6);
+            resultContainer.querySelector('.biayaPosisi').innerText = biayaPosisi.toFixed(6)
+            resultContainer.querySelector('.landrhasil').innerText = landrhasil.toFixed(6);
+            resultContainer.querySelector('.instrument').innerText = instrument;
+        }
+
+
+        function toggleCardInputSection(cardNumber) {
+            var templateCard = document.querySelector('.template-card');
+            var container = document.querySelector('.container');
+            var button = document.querySelector('button[onclick="toggleCardInputSection(' + cardNumber + ')"]');
+            var leverage;
+
+            var newCard = templateCard.cloneNode(true);
+            newCard.id = 'card' + cardNumber;
+            newCard.style.display = 'flex';
+            newCard.classList.remove('template-card');
+            newCard.classList.add('card');
+            newCard.dataset.leverage = leverage;
+
+            // Tambahkan keterangan secara dinamis
+            newCard.querySelector('.keterangan').innerText = keterangan[cardNumber];
+
+            // Add button to remove the card
+            var removeButton = document.createElement('b');
+            // removeButton.innerText = 'Hapus';
+            removeButton.onclick = function () {
+                removeCard(this);
+            };
+            newCard.querySelector('.card-buttons').appendChild(removeButton);
+
+            container.appendChild(newCard);
+        }
+
+        function removeCard(button) {
+            var cardToRemove = button.closest('.card');
+            cardToRemove.parentNode.removeChild(cardToRemove);
+        }
+
+
+        function saveToLocalStorage(key, value) {
+            localStorage.setItem(key, JSON.stringify(value));
+        }
+
+        function getFromLocalStorage(key) {
+            const value = localStorage.getItem(key);
+            return value ? JSON.parse(value) : null;
+        }
+
+
+        function fetchFearAndGreedIndex() {
+            const url = 'https://api.alternative.me/fng/?limit=2';
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const sentiment = data.data[0].value;
+                    const condition = getCondition(sentiment);
+
+                    // Save to local storage
+                    saveToLocalStorage('fngData', { sentiment, condition });
+
+                    // Display data
+                    displayFearAndGreedIndex(sentiment, condition);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+
+        function getCondition(sentiment) {
+            if (sentiment >= 0 && sentiment <= 25) {
+                return "Extreme Fear";
+            } else if (sentiment >= 26 && sentiment <= 40) {
+                return "Fear";
+            } else if (sentiment >= 41 && sentiment <= 59) {
+                return "Neutral";
+            } else if (sentiment >= 60 && sentiment <= 75) {
+                return "Greed";
+            } else if (sentiment >= 76 && sentiment <= 100) {
+                return "Extreme Greed";
+            }
+        }
+
+        function displayFearAndGreedIndex(sentiment, condition) {
+            document.getElementById('sentiment').innerText = sentiment;
+            document.getElementById('condition').innerText = `(${condition})`;
+        }
+
+        function init() {
+            // Try to get data from local storage
+            const storedData = getFromLocalStorage('fngData');
+
+            if (storedData) {
+                // If data exists, display it immediately
+                displayFearAndGreedIndex(storedData.sentiment, storedData.condition);
+            } else {
+                // Otherwise, fetch new data
+                fetchFearAndGreedIndex();
+            }
+        }
+
+        // Initialize the page
+        init();
+
+
+    </script>
+</body>
+
+</html>
